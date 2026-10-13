@@ -2,8 +2,13 @@ const API_KEY = "873e8e6151267ebc81eb6e4ab5d3bf2e";
 const BASE_URL = "https://api.openweathermap.org/data/2.5";
 const GEO_URL = "https://api.openweathermap.org/geo/1.0";
 
-// Reusable function for API requests and error handling
 const fetchJson = async (url, city = "") => {
+    if (!API_KEY) {
+        throw new Error(
+            "API key is missing. Add VITE_OPENWEATHER_API_KEY to your .env.local file."
+        );
+    }
+
     let response;
 
     try {
@@ -11,7 +16,7 @@ const fetchJson = async (url, city = "") => {
     } catch (error) {
         if (error instanceof TypeError) {
             throw new Error(
-                "Network error. Please check your internet connection and try again."
+                "Network error. Please check your internet connection and try again.", { cause: error }
             );
         }
 
@@ -21,14 +26,14 @@ const fetchJson = async (url, city = "") => {
     if (!response.ok) {
         if (response.status === 401) {
             throw new Error(
-                "Invalid API key. Please check your OpenWeatherMap API configuration."
+                "Invalid API key. Check your OpenWeatherMap configuration."
             );
         }
 
         if (response.status === 404) {
             throw new Error(
                 city
-                    ? `City ${city} not found. Please check the spelling and try again.`
+                    ? `City "${city}" not found. Check the spelling and try again.`
                     : "Requested location not found."
             );
         }
@@ -45,7 +50,9 @@ const fetchJson = async (url, city = "") => {
             );
         }
 
-        throw new Error(`API request failed with status ${response.status}.`);
+        throw new Error(
+            `API request failed with status ${response.status}.`
+        );
     }
 
     return response.json();
@@ -64,10 +71,6 @@ export const getCurrentWeather = async (city) => {
         city
     );
 
-    if (!data.dt) {
-        data.dt = Math.floor(Date.now() / 1000);
-    }
-
     return data;
 };
 
@@ -80,18 +83,10 @@ export const getCurrentWeatherByCoords = async (lat, lon) => {
         units: "metric",
     });
 
-    const data = await fetchJson(
-        `${BASE_URL}/weather?${params}`
-    );
-
-    if (!data.dt) {
-        data.dt = Math.floor(Date.now() / 1000);
-    }
-
-    return data;
+    return fetchJson(`${BASE_URL}/weather?${params}`);
 };
 
-// Get weather forecast by city name
+// Get forecast by city name
 export const getWeatherForecast = async (city) => {
     const params = new URLSearchParams({
         q: city.trim(),
@@ -99,15 +94,27 @@ export const getWeatherForecast = async (city) => {
         units: "metric",
     });
 
-    return await fetchJson(
+    return fetchJson(
         `${BASE_URL}/forecast?${params}`,
         city
     );
 };
 
+// Get forecast by coordinates
+export const getWeatherForecastByCoords = async (lat, lon) => {
+    const params = new URLSearchParams({
+        lat: String(lat),
+        lon: String(lon),
+        appid: API_KEY,
+        units: "metric",
+    });
+
+    return fetchJson(`${BASE_URL}/forecast?${params}`);
+};
+
 // Search for cities
 export const searchCities = async (query) => {
-    if (!query.trim()) {
+    if (!query?.trim()) {
         return [];
     }
 
